@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ResumeTailor AI</title>
+
+<!-- Cargamos las librerías necesarias desde CDNs oficiales -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: #f4f6f9;
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1000px;
+    margin: auto;
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.1);
+}
+
+h1 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 5px;
+}
+
+.subtitle {
+    text-align: center;
+    color: #666;
+    margin-bottom: 25px;
+}
+
+.section {
+    margin-bottom: 20px;
+}
+
+h3 {
+    color: #34495e;
+    margin-bottom: 10px;
+}
+
+/* Zona de arrastre (Drop Zone) */
+.drop-zone {
+    width: 100%;
+    min-height: 140px;
+    border: 2px dashed #007bff;
+    border-radius: 8px;
+    background: #f8fafd;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 20px;
+    transition: background 0.3s, border-color 0.3s;
+}
+
+.drop-zone.dragover {
+    background: #e6f0fa;
+    border-color: #0056b3;
+}
+
+.drop-zone p {
+    margin: 5px 0;
+    color: #555;
+    text-align: center;
+}
+
+.drop-zone .icon {
+    font-size: 40px;
+    margin-bottom: 10px;
+}
+
+#fileInput {
+    display: none;
+}
+
+.file-status {
+    font-weight: bold;
+    color: #28a745;
+    margin-top: 10px;
+    display: none;
+    text-align: center;
+}
+
+textarea {
+    width: 100%;
+    height: 150px;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-family: inherit;
+    resize: vertical;
+}
+
+.btn {
+    width: 100%;
+    padding: 15px;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-bottom: 10px;
+}
+
+.btn-primary {
+    background: #007bff;
+}
+
+.btn-primary:hover {
+    background: #0056b3;
+}
+
+.btn-success {
+    background: #28a745;
+    margin-top: 15px;
+}
+
+.btn-success:hover {
+    background: #218838;
+}
+
+#results {
+    display: none;
+    margin-top: 25px;
+}
+
+.card {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 15px;
+    border-left: 5px solid #007bff;
+}
+
+.score {
+    font-size: 32px;
+    font-weight: bold;
+    color: #28a745;
+}
+
+.keyword-list {
+    padding-left: 20px;
+}
+
+.keyword-list li {
+    margin-bottom: 5px;
+}
+
+.missing {
+    color: #dc3545;
+}
+
+.found {
+    color: #28a745;
+}
+
+/* Contenedor del CV en Inglés listo para descargarse */
+#pdf-content {
+    background: #fff;
+    padding: 40px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    color: #222;
+    line-height: 1.5;
+    font-family: 'Arial', sans-serif;
+}
+
+#pdf-content h1 {
+    font-size: 26px;
+    color: #000;
+    text-align: center;
+    margin-bottom: 5px;
+}
+
+#pdf-content h2 {
+    font-size: 16px;
+    color: #111;
+    border-bottom: 2px solid #333;
+    padding-bottom: 3px;
+    margin-top: 25px;
+    margin-bottom: 10px;
+    letter-spacing: 0.5px;
+}
+
+#pdf-content p, #pdf-content li {
+    font-size: 13px;
+}
+
+#pdf-content ul {
+    padding-left: 20px;
+    margin-top: 5px;
+}
+
+.job-header {
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+    margin-top: 12px;
+}
+
+.job-company {
+    font-style: italic;
+    color: #444;
+    margin-bottom: 5px;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<h1>ResumeTailor AI</h1>
+<p class="subtitle">Optimiza tu CV con Inteligencia Artificial</p>
+
+<!-- CV DROP ZONE -->
+<div class="section">
+    <h3>Sube tu CV actual (.pdf, .docx, .doc o .txt)</h3>
+    <div class="drop-zone" id="dropZone">
+        <div class="icon">📄</div>
+        <p><strong>Arrastra y suelta tu archivo aquí</strong></p>
+        <p>o haz clic para buscar en tu dispositivo</p>
+        <input type="file" id="fileInput" accept=".pdf,.docx,.doc,.txt">
+    </div>
+    <div class="file-status" id="fileStatus"></div>
+</div>
+
+<!-- JOB DESCRIPTION -->
+<div class="section">
+    <h3>Descripción del Puesto Target</h3>
+    <textarea id="job" placeholder="Pega aquí los requerimientos o descripción de la vacante en inglés..."></textarea>
+</div>
+
+<button class="btn btn-primary" onclick="optimizeResume()">Optimizar y Generar CV</button>
+
+<!-- RESULTADOS -->
+<div id="results">
+
+    <div class="card">
+        <h2>Compatibilidad ATS</h2>
+        <div class="score" id="score">0%</div>
+    </div>
+
+    <div class="card">
+        <h2>Análisis de Palabras Clave</h2>
+        <ul id="keywords" class="keyword-list"></ul>
+    </div>
+
+    <!-- Área interactiva que se convertirá en PDF -->
+    <div class="card">
+        <h2>Propuesta de CV Optimizado (Inglés)</h2>
+        <div id="pdf-content">
+            <!-- El contenido dinámico estructurado se inyectará aquí -->
+        </div>
+        <button class="btn btn-success" onclick="exportToPDF()">Guardar y Descargar CV en PDF</button>
+    </div>
+
+</div>
+
+</div>
+
+<script>
+// Configuración global para PDF.js
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+let extractedText = ""; 
+const dropZone = document.getElementById("dropZone");
+const fileInput = document.getElementById("fileInput");
+const fileStatus = document.getElementById("fileStatus");
+
+// Eventos para interactuar con la zona Drag & Drop
+dropZone.addEventListener("click", () => fileInput.click());
+
+dropZone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dropZone.classList.add("dragover");
+});
+
+dropZone.addEventListener("dragleave", () => {
+    dropZone.classList.remove("dragover");
+});
+
+dropZone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropZone.classList.remove("dragover");
+    if (e.dataTransfer.files.length > 0) {
+        handleFile(e.dataTransfer.files[0]);
+    }
+});
+
+fileInput.addEventListener("change", (e) => {
+    if (e.target.files.length > 0) {
+        handleFile(e.target.files[0]);
+    }
+});
+
+function handleFile(file) {
+    fileStatus.style.display = "block";
+    fileStatus.style.color = "#007bff";
+    fileStatus.innerText = `Procesando: ${file.name}...`;
+    extractedText = "";
+
+    const fileType = file.name.split('.').pop().toLowerCase();
+
+    if (fileType === "pdf") {
+        const reader = new FileReader();
+        reader.onload = function() {
+            const typedarray = new Uint8Array(this.result);
+            pdfjsLib.getDocument(typedarray).promise.then(async function(pdf) {
+                let text = "";
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const content = await page.getTextContent();
+                    text += content.items.map(item => item.str).join(" ") + "\n";
+                }
+                extractedText = text;
+                showSuccessStatus(file.name);
+            }).catch(err => {
+                showErrorStatus("Error al leer el archivo PDF.");
+            });
+        };
+        reader.readAsArrayBuffer(file);
+
+    } else if (fileType === "docx" || fileType === "doc") {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const arrayBuffer = event.target.result;
+            mammoth.extractRawText({ arrayBuffer: arrayBuffer })
+                .then(function(result) {
+                    extractedText = result.value;
+                    showSuccessStatus(file.name);
+                })
+                .catch(function(err) {
+                    showErrorStatus("Error al leer el archivo Word (.docx). Asegúrate de que no esté dañado.");
+                });
+        };
+        reader.readAsArrayBuffer(file);
+
+    } else if (fileType === "txt") {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            extractedText = e.target.result;
+            showSuccessStatus(file.name);
+        };
+        reader.readAsText(file);
+    } else {
+        showErrorStatus("Formato no soportado. Sube un archivo .pdf, .docx, .doc o .txt");
+    }
+}
+
+function showSuccessStatus(name) {
+    fileStatus.style.color = "#28a745";
+    fileStatus.innerText = `✓ ¡Archivo cargado con éxito!: ${name}`;
+}
+
+function showErrorStatus(msg) {
+    fileStatus.style.color = "#dc3545";
+    fileStatus.innerText = msg;
+}
+
+function optimizeResume(){
+    const job = document.getElementById("job").value.toLowerCase().trim();
+    const resume = extractedText.toLowerCase().trim();
+
+    if(!resume){
+        alert("Por favor, arrastra o selecciona tu archivo de CV primero.");
+        return;
+    }
+    if(!job){
+        alert("Por favor, pega la descripción del puesto.");
+        return;
+    }
+
+    /* Palabras Clave Críticas del Sector QA/Medical Devices */
+    const keywords = [
+        "quality","compliance","gmp","validation","manufacturing",
+        "investigation","risk assessment","change control",
+        "root cause","documentation","leadership",
+        "communication","problem solving","six sigma","capa","audit"
+    ];
+
+    let found = [];
+    let missing = [];
+
+    keywords.forEach(k => {
+        if(job.includes(k)){
+            if(resume.includes(k)){
+                found.push(k);
+            } else {
+                missing.push(k);
+            }
+        }
+    });
+
+    let score = 50;
+    const totalJobKeywords = found.length + missing.length;
+    if (totalJobKeywords > 0) {
+        score = Math.round(50 + ((found.length / totalJobKeywords) * 50));
+    } else {
+        score = 70; 
+    }
+
+    document.getElementById("score").innerText = score + "%";
+
+    let keywordsHTML = "";
+    if(found.length === 0 && missing.length === 0) {
+        keywordsHTML = "<li>No specific matching core keywords identified in the job text.</li>";
+    } else {
+        found.forEach(k => keywordsHTML += `<li class="found">✅ <strong>${k}</strong> (Found in your background)</li>`);
+        missing.forEach(k => keywordsHTML += `<li class="missing">❌ <strong>${k}</strong> (Highly recommended to explicitly reinforce)</li>`);
+    }
+    document.getElementById("keywords").innerHTML = keywordsHTML;
+
+    // Inyección de la plantilla optimizada en INGLÉS con tus datos reales incorporados
+    let optimizedHTML = `
+        <h1>JOSE A. ACEVEDO FLORES</h1>
+        <p style="text-align:center; color:#444; margin-bottom:15px; font-weight: bold;">
+            Quality Assurance Professional | Quality Lab Analyst | CAPA | FDA Compliance<br>
+            Email: gladietorgator@gmail.com | LinkedIn: linkedin.com/in/jose-acevedo-flores
+        </p>
+        
+        <h2>PROFESSIONAL SUMMARY</h2>
+        <p>Detail-oriented and results-driven Quality Assurance professional with over 18 years of comprehensive experience in the medical device and pharmaceutical industries. Proven expertise in developing, managing, and executing quality assurance and control processes to ensure strict compliance with FDA, ISO 13485, and corporate standards. Skilled in root cause analysis, deviation management, CAPA investigations, and validation protocols (IQ, OQ, PQ). Recognized for strong leadership, critical thinking, and cross-functional collaboration to optimize process yield, minimize operational risks, and assure product excellence.</p>
+        
+        <h2>CORE COMPETENCIES</h2>
+        <p style="line-height: 1.6;">
+            FDA & ISO 13485 Compliance | Root Cause & Corrective Action (CAPA) | Non-Conformance & Deviation Management | Statistical Process Control (SPC) | Process & Product Validation (IQ/OQ/PQ, G&RR) | Lean Manufacturing / Continuous Improvement | Audit Support (FDA, ISO, Corporate) | Technical Documentation & Report Writing | Cross-functional Team Leadership
+        </p>
+
+        <h2>PROFESSIONAL EXPERIENCE</h2>
+        
+        <div class="job-header">
+            <span>Quality Technician II</span>
+            <span>Dec 2023 – Apr 2026</span>
+        </div>
+        <div class="job-company">Medtronic – Juncos, PR</div>
+        <ul>
+            <li>Led complex investigations of raw material and manufacturing quality issues, meticulously documenting results per internal procedures and regulatory standards.</li>
+            <li>Conducted comprehensive root cause analyses using Lean Six Sigma tools to prevent recurrence of non-conformances and systematic deviations.</li>
+            <li>Supported new product startups and lines transfer, ensuring continuous process readiness and rigid quality system compliance.</li>
+            <li>Presented data-driven quality insights and VSPC metrics to manufacturing teams to enhance process reliability, yield, and overall product quality.</li>
+        </ul>
+
+        <div class="job-header">
+            <span>Quality Control Chemist</span>
+            <span>Sep 2023 – Dec 2023</span>
+        </div>
+        <div class="job-company">Galephar Pharma R&D – Humacao, PR</div>
+        <ul>
+            <li>Performed specialized analytical testing utilizing HPLC (Agilent 1100), Karl Fisher, UV, and Dissolution Bath instrumentation methods.</li>
+            <li>Conducted controlled substance analyses and ensured all raw material, R&D, and stability testing met strict regulatory frameworks.</li>
+            <li>Executed Aerodynamic Particle Size Distribution (APSD) testing protocols for DPI stability using Next Generation Impactors (NGI).</li>
+        </ul>
+
+        <div class="job-header">
+            <span>Quality Technician / QA Final Pack Coordinator</span>
+            <span>Apr 2014 – Jun 2023</span>
+        </div>
+        <div class="job-company">Abbott – Caguas, PR</div>
+        <ul>
+            <li>Supervised and coordinated teams of Quality Inspectors to successfully meet tight manufacturing, validation, and packaging schedules.</li>
+            <li>Developed high-level quality production reports, ongoing trend analyses, and rigorous SPC monitoring for line process optimization.</li>
+            <li>Led multi-departmental validation projects (IQ, OQ, PQ, G&RR) achieving an 8% process yield improvement in Mechanical Heart Valve sealing lines.</li>
+            <li>Actively supported major external FDA, ISO, and Corporate audits ensuring 100% compliance and swift audit preparedness.</li>
+            <li>Implemented dynamic data tracking tools that reduced line interruptions and optimized inspection workstation efficiency.</li>
+        </ul>
+
+        <div class="job-header">
+            <span>Quality Assurance Inspector</span>
+            <span>Previous Tenure</span>
+        </div>
+        <div class="job-company">St. Jude Medical – Caguas, PR</div>
+        <ul>
+            <li>Successfully coordinated and led the Lot Release Testing Transfer project from corporate facilities in Minnesota to Puerto Rico.</li>
+            <li>Spearheaded Lean 5S initiatives, improving overall QA inspection workstation workspace, safety metrics, and operation efficiency.</li>
+        </ul>
+
+        <h2>EDUCATION & CREDENTIALS</h2>
+        <p><strong>Bachelor of Science (B.S.)</strong><br>
+        Major fields in Scientific/Laboratory Methodologies & Quality Frameworks</p>
+        <p style="margin-top: 5px;"><strong>Certifications & Software:</strong> Lean 5S | Orange Belt Certified | Supervisor Excellence Training | SAP, MES, EPIQ, VSPC, Minitab, Microsoft Office Suite</p>
+    `;
+
+    document.getElementById("pdf-content").innerHTML = optimizedHTML;
+    document.getElementById("results").style.display = "block";
+    document.getElementById("results").scrollIntoView({ behavior: 'smooth' });
+}
+
+// Función para descargar y guardar localmente el documento como un PDF real
+function exportToPDF() {
+    const element = document.getElementById('pdf-content');
+    const opt = {
+        margin:       12,
+        filename:     'Jose_Acevedo_Flores_Tailored_Resume.pdf',
+        image:        { type: 'jpeg', quality: 0.99 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' }
+    };
+    
+    html2pdf().set(opt).from(element).save();
+}
+</script>
+
+</body>
+</html>
